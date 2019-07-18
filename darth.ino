@@ -595,9 +595,7 @@ void unboard(void)
   
   for (unsigned int i = 0; i < numPassengersGoingHere[currFloor]; ++i)
   {
-    delayWithInterrupts(
-      random(HR_MAX_UNBOARD_TIME - HR_MIN_UNBOARD_TIME)
-        + HR_MIN_UNBOARD_TIME);
+    delayWithInterrupts(random(HR_MIN_UNBOARD_TIME, HR_MAX_UNBOARD_TIME);
   }
 
   // reset passenger count
@@ -620,9 +618,7 @@ void board(void)
   {
     // delay
     
-    delayWithInterrupts(
-      random(HR_MAX_BOARD_TIME - HR_MIN_BOARD_TIME)
-        + HR_MIN_BOARD_TIME);
+    delayWithInterrupts(random(HR_MIN_BOARD_TIME, HR_MAX_BOARD_TIME);
 
     // let this boarder press an inside button
     
@@ -674,7 +670,7 @@ ISR(TIMER1_COMPA_vect)
   {
     // going up?
     
-    if ((f != HR_MAX_FLOOR) && (random(ticsPerUp[f]) == 0))
+    if ((f < HR_MAX_FLOOR) && (random(ticsPerUp[f]) == 0))
     {
       ++numCallersGoingUp[f];
       btnsChanged = true;
@@ -682,7 +678,7 @@ ISR(TIMER1_COMPA_vect)
     
     // going down?
     
-    if ((f != HR_MIN_FLOOR) && (random(ticsPerDown[f]) == 0))
+    if ((f > HR_MIN_FLOOR) && (random(ticsPerDown[f]) == 0))
     {
       ++numCallersGoingDown[f];
       btnsChanged = true;
@@ -772,109 +768,104 @@ void setupTimerInterrupts()
 void loop()
 {
   //////////////////////////////////////////////////////////////////////////////
-   //  the main run loop
-   //
-   //  interrupts are always enabled coming into this
+  //  the main run loop
+  //
+  //  interrupts are always enabled coming into this
   //////////////////////////////////////////////////////////////////////////////
 
-  // if we have work to do
+  // disable interrupts until we're done (delays will enable and disable them)
+
+  noInterrupts();
   
-  if (btnsChanged)
+  // turn on activity LED
+
+  digitalWrite(LED_BUILTIN, HIGH);
+  
+  // any buttons above us awaiting service in either direction?
+
+  bool waitingAbove = false;
+  for (floor_t f = currFloor + 1; f <= HR_MAX_FLOOR; ++f)
   {
-    // disable interrupts until we're done (delays will enable and disable them)
+    waitingAbove |= ((numCallersGoingUp[f] > 0) ||
+                     (numCallersGoingDown[f] > 0));
+  }
 
-    noInterrupts();
-    
-    // turn on activity LED
+  // any buttons below us awaiting service in either direction?
 
-    digitalWrite(LED_BUILTIN, HIGH);
-    
-    // any buttons above us awaiting service in either direction?
+  bool waitingBelow = false;
+  for (floor_t f = currFloor - 1; f >= HR_MIN_FLOOR; --f)
+  {
+    waitingBelow |= ((numCallersGoingUp[f] > 0) ||
+                     (numCallersGoingDown[f] > 0));
+  }
+
+  // start moving if necessary
+
+  setCurrDirection(Stopped ?
+    (waitingAbove ? Up :
+      (waitingBelow ? Down : Stopped)) : 
+        currDirection);
   
-    bool waitingAbove = false;
-    for (floor_t f = currFloor + 1; f <= HR_MAX_FLOOR; ++f)
+  // handle movement
+
+  if (currDirection == Up)
+  {
+    if (waitingAbove)
     {
-      waitingAbove = ((numCallersGoingUp[f] > 0) ||
-                      (numCallersGoingDown[f] > 0));
+      // we're going up and we're needed above, so go up a floor
+      
+      travelToFloor(currFloor + 1);
     }
-  
-    // any buttons below us awaiting service in either direction?
-  
-    bool waitingBelow = false;
-    for (floor_t f = currFloor - 1; f >= HR_MIN_FLOOR; --f)
+    else
     {
-      waitingBelow = ((numCallersGoingUp[f] > 0) ||
-                      (numCallersGoingDown[f] > 0));
-    }
-  
-    // start moving if necessary
-  
-    setCurrDirection(Stopped ?
-      (waitingAbove ? Up :
-        (waitingBelow ? Down : Stopped)) : 
-          currDirection);
-    
-    // handle movement
-  
-    if (currDirection == Up)
-    {
-      if (waitingAbove)
-      {
-        // we're going up and we're needed above, so go up a floor
-        
-        travelToFloor(currFloor + 1);
-      }
-      else
-      {
-        // we're going up but we're not needed above
-        
-        if (waitingBelow)
-        {
-          // but we're needed below, so turn around
-          
-          setCurrDirection(Down);
-        }
-        else
-        {
-          // and we're not needed below, so stop
-          
-          setCurrDirection(Stopped);
-        }
-      }
-    }
-    else if (currDirection == Down)
-    {
+      // we're going up but we're not needed above
+      
       if (waitingBelow)
       {
-        // we're going down and we're needed below, so go down a floor
+        // but we're needed below, so turn around
         
-        travelToFloor(currFloor - 1);
+        setCurrDirection(Down);
       }
       else
       {
-        // we're going down but we're not needed below
+        // and we're not needed below, so stop
         
-        if (waitingAbove)
-        {
-          // but we're needed above, so turn around
-          
-          setCurrDirection(Up);
-        }
-        else
-        {
-          // and we're not needed anywhere, so stop
-          
-          setCurrDirection(Stopped);
-        }
+        setCurrDirection(Stopped);
       }
     }
-
-    // turn off activity LED
-
-    digitalWrite(LED_BUILTIN, LOW);
-
-    // reenable interrupts
-
-    interrupts();
   }
+  else if (currDirection == Down)
+  {
+    if (waitingBelow)
+    {
+      // we're going down and we're needed below, so go down a floor
+      
+      travelToFloor(currFloor - 1);
+    }
+    else
+    {
+      // we're going down but we're not needed below
+      
+      if (waitingAbove)
+      {
+        // but we're needed above, so turn around
+        
+        setCurrDirection(Up);
+      }
+      else
+      {
+        // and we're not needed anywhere, so stop
+        
+        setCurrDirection(Stopped);
+      }
+    }
+  }
+
+  // turn off activity LED
+
+  digitalWrite(LED_BUILTIN, LOW);
+
+  // reenable interrupts
+
+  interrupts();
 }
