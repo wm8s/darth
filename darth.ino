@@ -86,23 +86,24 @@
 #define DARTH_LAMP_TEST_MAXBLINK    2
 
 #define DARTH_PIN_DEMOSW    A5
+#define DARTH_PIN_EXTRASW   A4
 
 #define DARTH_PIN_EMPTYA    A0
 
-#define DARTH_PIN_DOWNLED   0    ///TODO
-#define DARTH_PIN_UPLED     0    ///TODO
+#define DARTH_PIN_DOWNLED   5
+#define DARTH_PIN_UPLED     12
 
-#define DARTH_PIN_GFL       0    ///TODO
-#define DARTH_PIN_1FL       0    ///TODO
-#define DARTH_PIN_2FL       0    ///TODO
-#define DARTH_PIN_3FL       0    ///TODO
-#define DARTH_PIN_4FL       0    ///TODO
-#define DARTH_PIN_5FL       0    ///TODO
-#define DARTH_PIN_6FL       0    ///TODO
-#define DARTH_PIN_7FL       0    ///TODO
-#define DARTH_PIN_8FL       0    ///TODO
-#define DARTH_PIN_9FL       0    ///TODO
-#define DARTH_PIN_10FL      0    ///TODO
+#define DARTH_PIN_GFL       11
+#define DARTH_PIN_1FL       10
+#define DARTH_PIN_2FL       9
+#define DARTH_PIN_3FL       8
+#define DARTH_PIN_4FL       7
+#define DARTH_PIN_5FL       6
+#define DARTH_PIN_6FL       A3
+#define DARTH_PIN_7FL       A2
+#define DARTH_PIN_8FL       2
+#define DARTH_PIN_9FL       3
+#define DARTH_PIN_10FL      4
 
 // some stuff about HiRise
 
@@ -262,7 +263,7 @@ enum CarDirection
 //bool systemDown = false;               // whole system down?  ///ENHANCEMENT?
 bool btnsChanged = false;                // did the ISR push any buttons?
 floor_t currFloor = HR_INIT_FLOOR;       // current floor
-CarDirection currDirection = Stopped;    // current direction
+CarDirection currDirection = Up;    // current direction
 //bool stuckMidFloor = false;            // stuck mid-floor?    ///ENHANCEMENT?
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -380,6 +381,20 @@ unsigned int numCallersGoingDown[HR_NUM_FLOORS] {};
 //  methods:
 ////////////////////////////////////////////////////////////////////////////////
 
+unsigned int demoAdj(unsigned int pUnadjusted)
+{
+  //////////////////////////////////////////////////////////////////////////////
+  //  return pUnadjusted if the demo switch is on,
+  //  else return (pUnadjusted / DARTH_SPEEDFACTOR)
+  //
+  //  remember that the demo switch is pulled high and grounded for on
+  //////////////////////////////////////////////////////////////////////////////
+
+  return ((digitalRead(DARTH_PIN_DEMOSW) == LOW) ?
+    pUnadjusted : 
+    (pUnadjusted / DARTH_SPEEDFACTOR));
+}
+
 void delayWithInterrupts(delay_t pDelay)
 {
   //////////////////////////////////////////////////////////////////////////////
@@ -390,10 +405,7 @@ void delayWithInterrupts(delay_t pDelay)
   //////////////////////////////////////////////////////////////////////////////
 
   interrupts();
-
-  if (digitalRead(DARTH_PIN_DEMOSW) == HIGH) delay(pDelay);
-  else                                       delay(pDelay / DARTH_SPEEDFACTOR);
-  
+  delay(demoAdj(pDelay));
   noInterrupts();
 }
 
@@ -412,7 +424,7 @@ void refreshLeds(void)
   if (currDirection == Up) digitalWrite(DARTH_PIN_UPLED, HIGH);
   else                     digitalWrite(DARTH_PIN_UPLED, LOW);
 
-   if (currDirection == Down) digitalWrite(DARTH_PIN_DOWNLED, HIGH);
+  if (currDirection == Down) digitalWrite(DARTH_PIN_DOWNLED, HIGH);
   else                       digitalWrite(DARTH_PIN_DOWNLED, LOW);
 
   // floor LEDs
@@ -435,36 +447,51 @@ void lampTest(void)
   //  lamp test
   //////////////////////////////////////////////////////////////////////////////
 
-  // turn on both direction LEDs
-
-  digitalWrite(DARTH_PIN_DOWNLED, HIGH);
-  digitalWrite(DARTH_PIN_UPLED, HIGH);
-
   // sweep the floor LEDs a couple of times
 
   for (int i = 0; i < DARTH_LAMP_TEST_MAXSWEEP; ++i)
   {
     // left to right
   
+    digitalWrite(DARTH_PIN_UPLED, HIGH);
+    delay(demoAdj(DARTH_LAMP_TEST_ON));
+    digitalWrite(DARTH_PIN_UPLED, LOW);
+    delay(demoAdj(DARTH_LAMP_TEST_OFF));
+    
     for (floor_t f = HR_MIN_FLOOR; f <= HR_MAX_FLOOR; ++f)
     {
       digitalWrite(ledPin[f], HIGH);
-      delay(DARTH_LAMP_TEST_ON);
+      delay(demoAdj(DARTH_LAMP_TEST_ON));
   
       digitalWrite(ledPin[f], LOW);
-      delay(DARTH_LAMP_TEST_OFF);
+      delay(demoAdj(DARTH_LAMP_TEST_OFF));
     }
 
+    digitalWrite(DARTH_PIN_DOWNLED, HIGH);
+    delay(demoAdj(DARTH_LAMP_TEST_ON));
+    digitalWrite(DARTH_PIN_DOWNLED, LOW);
+    delay(demoAdj(DARTH_LAMP_TEST_OFF));
+    
     // then right to left
   
+    digitalWrite(DARTH_PIN_DOWNLED, HIGH);
+    delay(demoAdj(DARTH_LAMP_TEST_ON));
+    digitalWrite(DARTH_PIN_DOWNLED, LOW);
+    delay(demoAdj(DARTH_LAMP_TEST_OFF));
+    
     for (floor_t f = HR_MAX_FLOOR; f >= HR_MIN_FLOOR; --f)
     {
       digitalWrite(ledPin[f], HIGH);
-      delay(DARTH_LAMP_TEST_ON);
+      delay(demoAdj(DARTH_LAMP_TEST_ON));
   
       digitalWrite(ledPin[f], LOW);
-      delay(DARTH_LAMP_TEST_OFF);
+      delay(demoAdj(DARTH_LAMP_TEST_OFF));
     }
+
+    digitalWrite(DARTH_PIN_UPLED, HIGH);
+    delay(demoAdj(DARTH_LAMP_TEST_ON));
+    digitalWrite(DARTH_PIN_UPLED, LOW);
+    delay(demoAdj(DARTH_LAMP_TEST_OFF));
   }
 
   // blink all floor LEDs a couple of times
@@ -475,22 +502,15 @@ void lampTest(void)
     {
       digitalWrite(ledPin[f], HIGH);
     }
-
-    delay(DARTH_LAMP_TEST_BLINK_ON);
+    delay(demoAdj(DARTH_LAMP_TEST_BLINK_ON));
 
     for (floor_t f = HR_MAX_FLOOR; f >= HR_MIN_FLOOR; --f)
     {
       digitalWrite(ledPin[f], LOW);
     }
-
-    delay(DARTH_LAMP_TEST_BLINK_OFF);
+    delay(demoAdj(DARTH_LAMP_TEST_BLINK_OFF));
   }
   
-  // turn off both direction LEDs
-  
-  digitalWrite(DARTH_PIN_DOWNLED, LOW);
-  digitalWrite(DARTH_PIN_UPLED, LOW);
-
   // refresh LEDs to model
 
   refreshLeds();
@@ -569,6 +589,12 @@ void travelToFloor(floor_t pFloor)
 
     board();
   }
+
+  // clear out the service requests:
+
+  numPassengersGoingHere[currFloor] = 0;
+  numCallersGoingUp[currFloor] = 0;
+  numCallersGoingDown[currFloor] = 0;
 }
 
 bool currFloorNeedsService(void)
@@ -595,7 +621,7 @@ void unboard(void)
   
   for (unsigned int i = 0; i < numPassengersGoingHere[currFloor]; ++i)
   {
-    delayWithInterrupts(random(HR_MIN_UNBOARD_TIME, HR_MAX_UNBOARD_TIME);
+    delayWithInterrupts(random(HR_MIN_UNBOARD_TIME, HR_MAX_UNBOARD_TIME));
   }
 
   // reset passenger count
@@ -618,7 +644,7 @@ void board(void)
   {
     // delay
     
-    delayWithInterrupts(random(HR_MIN_BOARD_TIME, HR_MAX_BOARD_TIME);
+    delayWithInterrupts(random(HR_MIN_BOARD_TIME, HR_MAX_BOARD_TIME));
 
     // let this boarder press an inside button
     
@@ -664,13 +690,17 @@ ISR(TIMER1_COMPA_vect)
   //  a caller will push an outside button during any given ISR tic.
   //////////////////////////////////////////////////////////////////////////////
 
+  // heartbeat
+  
+  digitalWrite(LED_BUILTIN, HIGH);
+
   // simulate outside button pushes
 
   for (floor_t f = HR_MIN_FLOOR; f <= HR_MAX_FLOOR; ++f)
   {
     // going up?
     
-    if ((f < HR_MAX_FLOOR) && (random(ticsPerUp[f]) == 0))
+    if ((f < HR_MAX_FLOOR) && (random(demoAdj(ticsPerUp[f])) == 0))
     {
       ++numCallersGoingUp[f];
       btnsChanged = true;
@@ -678,7 +708,7 @@ ISR(TIMER1_COMPA_vect)
     
     // going down?
     
-    if ((f > HR_MIN_FLOOR) && (random(ticsPerDown[f]) == 0))
+    if ((f > HR_MIN_FLOOR) && (random(demoAdj(ticsPerDown[f])) == 0))
     {
       ++numCallersGoingDown[f];
       btnsChanged = true;
@@ -687,12 +717,13 @@ ISR(TIMER1_COMPA_vect)
 
   // simulate lamp burnout and repair
 
-///ENHANCEMENT?
+  ///ENHANCEMENT?
 
   // simulate system failure and repair
   
-///ENHANCEMENT?
+  ///ENHANCEMENT?
   
+  digitalWrite(LED_BUILTIN, LOW); ///TESTING
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -705,11 +736,12 @@ void setup()
    //  set everything up
   //////////////////////////////////////////////////////////////////////////////
 
+  interrupts();
+  setupIO();
+
   noInterrupts();
   randomSeed(analogRead(DARTH_PIN_EMPTYA));
-  setupIO();
   setupTimerInterrupts();
-  interrupts();
 }
 
 void setupIO()
@@ -748,17 +780,25 @@ void setupTimerInterrupts()
   //    Timer 1 to CTC at tic frequency
   //////////////////////////////////////////////////////////////////////////////
 
-  // set value to compare for this clock frequency, prescaler, and tic frequency
-
-  OCR1A = ARDUINO_CLOCK / 1024 / DARTH_TIMER_TIC_FREQ;
-
-  // set interupt on compare match
+  noInterrupts();
   
-  TIMSK1 |= bit(OCIE1A);
-
   // set mode 4 (CTC on OCR1A), prescaler=1024 + start
   
-  TCCR1B |= bit(WGM12) | bit(CS12) | bit(CS10);  
+  TCCR1A = 0;              // Make sure it is zero
+  
+  TCCR1B = (1 << WGM12);   // Configure for CTC mode (Set it; don't OR stuff into it)
+  TCCR1B |= ((1 << CS10) | (1 << CS12)); // Prescaler @ 1024
+  
+  TIMSK1 = (1 << OCIE1A);  // Enable interrupt
+  
+  // set compare value:
+  
+  unsigned long t = ARDUINO_CLOCK;
+  t /= 1024;
+  t /= DARTH_TIMER_TIC_FREQ;
+  OCR1A = t;
+
+  interrupts();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -776,10 +816,6 @@ void loop()
   // disable interrupts until we're done (delays will enable and disable them)
 
   noInterrupts();
-  
-  // turn on activity LED
-
-  digitalWrite(LED_BUILTIN, HIGH);
   
   // any buttons above us awaiting service in either direction?
 
@@ -801,7 +837,7 @@ void loop()
 
   // start moving if necessary
 
-  setCurrDirection(Stopped ?
+  setCurrDirection((currDirection == Stopped) ?
     (waitingAbove ? Up :
       (waitingBelow ? Down : Stopped)) : 
         currDirection);
@@ -860,10 +896,6 @@ void loop()
       }
     }
   }
-
-  // turn off activity LED
-
-  digitalWrite(LED_BUILTIN, LOW);
 
   // reenable interrupts
 
