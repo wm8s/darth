@@ -390,7 +390,7 @@ unsigned int demoAdj(unsigned int pUnadjusted)
   //  remember that the demo switch is pulled high and grounded for on
   //////////////////////////////////////////////////////////////////////////////
 
-  return ((digitalRead(DARTH_PIN_DEMOSW) == LOW) ?
+  return ((digitalRead(DARTH_PIN_DEMOSW) == HIGH) ?
     pUnadjusted : 
     (pUnadjusted / DARTH_SPEEDFACTOR));
 }
